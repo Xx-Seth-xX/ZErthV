@@ -47,18 +47,11 @@ fn updateCamera(camera: *ray.Camera3D, dt: f32) void {
     ray.CameraMoveToTarget(camera, CameraSpeed.zoom * dt);
     ray.CameraYaw(camera, CameraSpeed.yaw, true);
     ray.CameraPitch(camera, CameraSpeed.pitch, true, true, false);
-    // if (ray.isKeyDown(ray.KEY_D)) {
-
-    // // Camera rotation
-    // RLAPI void CameraYaw(Camera *camera, float angle, bool rotateAroundTarget);
-    // RLAPI void CameraPitch(Camera *camera, float angle, bool lockView, bool rotateAroundTarget, bool rotateUp);
-    // RLAPI void CameraRoll(Camera *camera, float angle);
-    // } else if (ray.isKeyDown(ray,))
 }
 
 fn setUpCamera() ray.Camera3D {
     var camera = ray.Camera3D{};
-    camera.position = Vector3(0.0, 0.0, -20.0);
+    camera.position = Vector3(0.0, 0.0, -150.0);
     camera.target = Vector3(0.0, 0.0, 0.0);
     camera.up = Vector3(0.0, 1.0, 0.0);
     camera.fovy = 45.0;
@@ -72,29 +65,52 @@ fn loadTexture(filename: [*c]const u8) !ray.Texture {
     }
     return texture;
 }
+
+const Astro = struct {
+    const Self = @This();
+    const rings = 40;
+    const slices = 40;
+
+    model: ray.Model,
+    pos: ray.Vector3,
+    color: ray.Color,
+
+    fn init(r: f32, pos: ray.Vector3, color: ray.Color, textu_: ?ray.Texture) Self {
+        var model = ray.LoadModelFromMesh(ray.GenMeshSphere(r, rings, slices));
+        if (textu_) |textu| {
+            model.materials[0].maps[ray.MATERIAL_MAP_DIFFUSE].texture = textu;
+            model.transform = ray.MatrixRotateX(-ray.PI / 2);
+        }
+        return Self{
+            .model = model,
+            .pos = pos,
+            .color = color,
+        };
+    }
+    fn draw(self: Self) void {
+        ray.DrawModel(self.model, self.pos, 1.0, self.color);
+    }
+};
+
 pub fn main() !void {
     ray.InitWindow(screen_width, screen_height, window_title);
     defer ray.CloseWindow();
     ray.SetTargetFPS(60);
 
     var camera = setUpCamera();
-    // RLAPI Mesh GenMeshSphere(float radius, int rings, int slices);                              // Generate sphere mesh (standard sphere)
-    var sphere_model = ray.LoadModelFromMesh(ray.GenMeshSphere(5.0, 40, 40));
-    const sphere_texture = try loadTexture("res/img/land_ocean_ice_cloud_2048_90.png");
-    sphere_model.materials[0].maps[ray.MATERIAL_MAP_DIFFUSE].texture = sphere_texture;
-    sphere_model.transform = ray.MatrixRotateX(-ray.PI / 2);
+
+    var earth = Astro.init(1.0, Vector3(50.0, 0.0, 0.0), ray.WHITE, try loadTexture("res/img/blue_marble.png"));
+    var sun = Astro.init(10.0, Vector3(0.0, 0.0, 0.0), ray.YELLOW, null);
 
     while (!ray.WindowShouldClose()) {
         const dt = ray.GetFrameTime();
         updateCamera(&camera, dt);
 
-        // rotation = ray.QuaternionMultiply(rotation, ray.QuaternionFromAxisAngle(Vector3(1.0, 0.0, 0.0), dt));
-        // sphere_model.transform = ray.QuaternionToMatrix(rotation);
-
         ray.BeginDrawing();
         ray.ClearBackground(ray.RAYWHITE);
         ray.BeginMode3D(camera);
-        ray.DrawModel(sphere_model, ray.Vector3Zero(), 1.0, ray.WHITE);
+        earth.draw();
+        sun.draw();
         ray.EndMode3D();
         ray.EndDrawing();
     }
