@@ -51,9 +51,9 @@ fn updateCamera(camera: *ray.Camera3D, dt: f32) void {
 
 fn setUpCamera() ray.Camera3D {
     var camera = ray.Camera3D{};
-    camera.position = Vector3(0.0, 0.0, -150.0);
+    camera.position = Vector3(-150.0, 0.0, 0.0);
     camera.target = Vector3(0.0, 0.0, 0.0);
-    camera.up = Vector3(0.0, 1.0, 0.0);
+    camera.up = Vector3(0.0, 0.0, 1.0);
     camera.fovy = 45.0;
     camera.projection = ray.CAMERA_PERSPECTIVE;
     return camera;
@@ -79,7 +79,6 @@ const Astro = struct {
         var model = ray.LoadModelFromMesh(ray.GenMeshSphere(r, rings, slices));
         if (textu_) |textu| {
             model.materials[0].maps[ray.MATERIAL_MAP_DIFFUSE].texture = textu;
-            model.transform = ray.MatrixRotateX(-ray.PI / 2);
         }
         return Self{
             .model = model,
