@@ -10,6 +10,12 @@ const screen_width = 800;
 const screen_height = 800;
 const window_title = "ZErthV";
 
+const km_per_au = 1 / 1.5e11;
+const earth_r = 6_371.0;
+const earth_r_au = earth_r * km_per_au;
+const sun_r = 700_000.0;
+const sun_r_au = sun_r * km_per_au;
+
 fn Vector3(x: f32, y: f32, z: f32) ray.Vector3 {
     return ray.Vector3{ .x = x, .y = y, .z = z };
 }
@@ -20,8 +26,8 @@ fn updateCamera(camera: *ray.Camera3D, dt: f32) void {
         var yaw: f32 = 0;
         var pitch: f32 = 0;
         const base_zoom: comptime_float = 10;
-        const base_yaw: comptime_float = 0.04;
-        const base_pitch: comptime_float = 0.04;
+        const base_yaw: comptime_float = 0.02;
+        const base_pitch: comptime_float = 0.02;
     };
 
     CameraSpeed.zoom *= 0.8;
@@ -74,9 +80,16 @@ const Astro = struct {
     model: ray.Model,
     pos: ray.Vector3,
     color: ray.Color,
+    axis: ray.Vector3,
 
-    fn init(r: f32, pos: ray.Vector3, color: ray.Color, textu_: ?ray.Texture) Self {
+    fn init(r: f32, pos: ray.Vector3, axis: ray.Vector3, color: ray.Color, textu_: ?ray.Texture) Self {
         var model = ray.LoadModelFromMesh(ray.GenMeshSphere(r, rings, slices));
+        // We calculate the rotation so the axis becomes the Z vector of the model
+        const z_v = Vector3(0.0, 0.0, 1.0);
+        const rot = ray.Vector3Normalize(ray.Vector3CrossProduct(z_v, axis));
+        const rot_angle = std.math.acos(ray.Vector3DotProduct(axis, z_v));
+        std.debug.print("rot_vector = {}, rot_angle = {}", .{ rot, rot_angle });
+        model.transform = ray.MatrixRotate(rot, rot_angle);
         if (textu_) |textu| {
             model.materials[0].maps[ray.MATERIAL_MAP_DIFFUSE].texture = textu;
         }
@@ -84,10 +97,15 @@ const Astro = struct {
             .model = model,
             .pos = pos,
             .color = color,
+            .axis = axis,
         };
     }
     fn draw(self: Self) void {
         ray.DrawModel(self.model, self.pos, 1.0, self.color);
+    }
+    fn rotateByAxis(self: *Self, theta: f32) void {
+        const rm = ray.MatrixRotate(self.*.axis, theta);
+        self.*.model.transform = ray.MatrixMultiply(self.*.model.transform, rm);
     }
 };
 
@@ -98,13 +116,15 @@ pub fn main() !void {
 
     var camera = setUpCamera();
 
-    var earth = Astro.init(1.0, Vector3(50.0, 0.0, 0.0), ray.WHITE, try loadTexture("res/img/blue_marble.png"));
-    var sun = Astro.init(10.0, Vector3(0.0, 0.0, 0.0), ray.YELLOW, null);
+    const earth_axis = Vector3(0.0, std.math.sin(std.math.degreesToRadians(f32, 17.8)), std.math.cos(std.math.degreesToRadians(f32, 17.8)));
+    var earth = Astro.init(1.0, Vector3(30.0, 0.0, 0.0), earth_axis, ray.WHITE, try loadTexture("res/img/blue_marble.png"));
+    var sun = Astro.init(10.0, Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), ray.RED, null);
 
     while (!ray.WindowShouldClose()) {
         const dt = ray.GetFrameTime();
         updateCamera(&camera, dt);
 
+        earth.rotateByAxis(dt);
         ray.BeginDrawing();
         ray.ClearBackground(ray.RAYWHITE);
         ray.BeginMode3D(camera);
