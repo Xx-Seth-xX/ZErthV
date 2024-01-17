@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // This has been tested to work with zig 0.11.0 and zig 0.12.0-dev.1390+94cee4fb2
-pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, options: Options) *std.Build.CompileStep {
+pub fn addRaylib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, options: Options) *std.Build.Step.Compile {
     const raylib_flags = &[_][]const u8{
         "-std=gnu99",
         "-D_GNU_SOURCE",
@@ -68,7 +68,7 @@ pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         raylib.addIncludePath(.{ .path = srcdir ++ "/../../raygui/src" });
     }
 
-    switch (target.getOsTag()) {
+    switch (target.result.os.tag) {
         .windows => {
             addCSourceFilesVersioned(raylib, &.{
                 srcdir ++ "/rglfw.c",
